@@ -31,6 +31,7 @@ export default function Home() {
 
   // Voice
   const [isListening, setIsListening] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
   const [status, setStatus] = useState('');
   const [statusType, setStatusType] = useState<'' | 'error' | 'success'>('');
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -45,6 +46,13 @@ export default function Home() {
       setPassword(saved);
       setIsAuthenticated(true);
     }
+  }, []);
+
+  // Check speech support (not available on iOS Safari)
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    setSpeechSupported(!!SpeechRecognition && !isIOS);
   }, []);
 
   // Fetch books
@@ -419,13 +427,15 @@ export default function Home() {
                 >
                   {isProcessing ? <span className="spinner" /> : 'Go'}
                 </button>
-                <button
-                  className={`mic-btn ${isListening ? 'listening' : ''}`}
-                  onClick={startListening}
-                  disabled={isProcessing}
-                >
-                  {isListening ? '...' : 'Mic'}
-                </button>
+                {speechSupported && (
+                  <button
+                    className={`mic-btn ${isListening ? 'listening' : ''}`}
+                    onClick={startListening}
+                    disabled={isProcessing}
+                  >
+                    {isListening ? '...' : 'Mic'}
+                  </button>
+                )}
               </div>
             </div>
           )}

@@ -536,10 +536,10 @@ export default function Home() {
         <>
           <button
             className="btn btn-primary"
-            style={{ marginBottom: '1rem', width: '100%' }}
+            style={{ marginBottom: '1rem' }}
             onClick={() => setShowAddBook(true)}
           >
-            Add New Book
+            + Add New Book
           </button>
 
           <div className="books-list">

@@ -321,21 +321,16 @@ export default function Home() {
       <div className="container">
         <form className="login-form" onSubmit={handleLogin}>
           <h1>Lexis</h1>
-          <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
-            Greek Vocabulary Builder
-          </p>
-          {authError && <p className="status error">{authError}</p>}
+          <p className="subtitle">Greek Vocabulary Builder</p>
+          {authError && <p className="error-message">{authError}</p>}
           <input
             type="password"
-            className="text-input"
             placeholder="Enter password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoFocus
           />
-          <button type="submit" className="btn btn-primary">
-            Login
-          </button>
+          <button type="submit">Login</button>
         </form>
       </div>
     );

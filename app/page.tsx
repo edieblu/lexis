@@ -29,12 +29,12 @@ export default function Home() {
   const [processedWord, setProcessedWord] = useState<ProcessedWord | null>(null);
   const [originalInput, setOriginalInput] = useState('');
 
-  // Voice
-  const [isListening, setIsListening] = useState(false);
-  const [speechSupported, setSpeechSupported] = useState(false);
+  // Voice (Whisper API)
+  const [isRecording, setIsRecording] = useState(false);
   const [status, setStatus] = useState('');
   const [statusType, setStatusType] = useState<'' | 'error' | 'success'>('');
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   const selectedBook = books.find((b) => b.id === selectedBookId);
   const getAuthHeader = useCallback(() => `Bearer ${password}`, [password]);
@@ -48,11 +48,6 @@ export default function Home() {
     }
   }, []);
 
-  // Check speech support
-  useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    setSpeechSupported(!!SpeechRecognition);
-  }, []);
 
   // Fetch books
   const fetchBooks = useCallback(async () => {
@@ -252,60 +247,75 @@ export default function Home() {
     }
   };
 
-  // Voice
-  const startListening = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
-      setIsListening(false);
+  // Voice recording with Whisper API
+  const startRecording = async () => {
+    // If already recording, stop and transcribe
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
       return;
     }
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setStatus('Voice input requires Chrome');
-      setStatusType('error');
-      return;
-    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
 
-    const recognition = new SpeechRecognition();
-    recognitionRef.current = recognition;
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'el-GR';
-
-    recognition.onstart = () => {
-      setIsListening(true);
-      setStatus('Listening...');
-      setStatusType('');
-    };
-
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      setStatus(`Heard: "${transcript}"`);
-      setStatusType('success');
-      processWord(transcript);
-    };
-
-    recognition.onerror = (event) => {
-      const errorMessages: Record<string, string> = {
-        'not-allowed': 'Microphone access denied. Check browser settings.',
-        'service-not-allowed': 'Speech recognition not available in this browser.',
-        'no-speech': 'No speech detected. Try again.',
-        'network': 'Network error. Check your connection.',
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
       };
-      setStatus(errorMessages[event.error] || `Error: ${event.error}`);
+
+      mediaRecorder.onstop = async () => {
+        // Stop all tracks
+        stream.getTracks().forEach((track) => track.stop());
+
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        setStatus('Transcribing...');
+
+        try {
+          const formData = new FormData();
+          formData.append('audio', audioBlob, 'recording.webm');
+
+          const res = await fetch('/api/transcribe', {
+            method: 'POST',
+            headers: { Authorization: getAuthHeader() },
+            body: formData,
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            if (data.text) {
+              setStatus(`Heard: "${data.text}"`);
+              setStatusType('success');
+              processWord(data.text);
+            } else {
+              setStatus('No speech detected');
+              setStatusType('error');
+            }
+          } else {
+            setStatus('Transcription failed');
+            setStatusType('error');
+          }
+        } catch {
+          setStatus('Transcription error');
+          setStatusType('error');
+        }
+
+        setIsRecording(false);
+        mediaRecorderRef.current = null;
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setStatus('Recording... tap to stop');
+      setStatusType('');
+    } catch (error) {
+      console.error('Microphone error:', error);
+      setStatus('Microphone access denied');
       setStatusType('error');
-      recognitionRef.current = null;
-      setIsListening(false);
-    };
-
-    recognition.onend = () => {
-      recognitionRef.current = null;
-      setIsListening(false);
-    };
-
-    recognition.start();
+    }
   };
 
   // Export
@@ -432,15 +442,13 @@ export default function Home() {
                 >
                   {isProcessing ? <span className="spinner" /> : 'Go'}
                 </button>
-                {speechSupported && (
-                  <button
-                    className={`mic-btn ${isListening ? 'listening' : ''}`}
-                    onClick={startListening}
-                    disabled={isProcessing}
-                  >
-                    {isListening ? '...' : 'Mic'}
-                  </button>
-                )}
+                <button
+                  className={`mic-btn ${isRecording ? 'listening' : ''}`}
+                  onClick={startRecording}
+                  disabled={isProcessing}
+                >
+                  {isRecording ? 'Stop' : 'Mic'}
+                </button>
               </div>
             </div>
           )}

@@ -48,11 +48,10 @@ export default function Home() {
     }
   }, []);
 
-  // Check speech support (not available on iOS Safari)
+  // Check speech support
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    setSpeechSupported(!!SpeechRecognition && !isIOS);
+    setSpeechSupported(!!SpeechRecognition);
   }, []);
 
   // Fetch books
@@ -289,7 +288,13 @@ export default function Home() {
     };
 
     recognition.onerror = (event) => {
-      setStatus(`Error: ${event.error}`);
+      const errorMessages: Record<string, string> = {
+        'not-allowed': 'Microphone access denied. Check browser settings.',
+        'service-not-allowed': 'Speech recognition not available in this browser.',
+        'no-speech': 'No speech detected. Try again.',
+        'network': 'Network error. Check your connection.',
+      };
+      setStatus(errorMessages[event.error] || `Error: ${event.error}`);
       setStatusType('error');
       recognitionRef.current = null;
       setIsListening(false);

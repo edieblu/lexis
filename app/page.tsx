@@ -447,7 +447,7 @@ export default function Home() {
                   onClick={startRecording}
                   disabled={isProcessing}
                 >
-                  {isRecording ? 'Stop' : 'Mic'}
+                  {isRecording ? '⏹️' : '🎙️'}
                 </button>
               </div>
             </div>

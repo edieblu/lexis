@@ -4,8 +4,8 @@
   "description": "Capture and learn Greek vocabulary from physical books",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1a1a2e",
-  "theme_color": "#1a1a2e",
+  "background_color": "#7BA3A0",
+  "theme_color": "#7BA3A0",
   "icons": [
     {
       "src": "/icon-192.png",

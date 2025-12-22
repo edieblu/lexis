@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
 import { validateAuth } from '@/lib/auth';
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get('Authorization');
@@ -20,13 +15,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No audio file provided' }, { status: 400 });
     }
 
-    const transcription = await openai.audio.transcriptions.create({
-      file: audioFile,
-      model: 'whisper-1',
-      language: 'el', // Greek
+    // Send to whisper-api.com
+    const whisperFormData = new FormData();
+    whisperFormData.append('file', audioFile);
+    whisperFormData.append('language', 'el'); // Greek
+    whisperFormData.append('model_size', 'large-v3');
+
+    const response = await fetch('https://api.whisper-api.com/transcribe', {
+      method: 'POST',
+      headers: {
+        'X-API-Key': process.env.WHISPER_API_KEY!,
+      },
+      body: whisperFormData,
     });
 
-    return NextResponse.json({ text: transcription.text });
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Whisper API error:', response.status, errorText);
+      return NextResponse.json({ error: 'Transcription service error' }, { status: 502 });
+    }
+
+    const result = await response.json();
+    return NextResponse.json({ text: result.text });
   } catch (error) {
     console.error('Transcription error:', error);
     return NextResponse.json({ error: 'Failed to transcribe audio' }, { status: 500 });

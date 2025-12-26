@@ -39,6 +39,11 @@ export default function Home() {
   const selectedBook = books.find((b) => b.id === selectedBookId);
   const getAuthHeader = useCallback(() => `Bearer ${password}`, [password]);
 
+  // Check for duplicate lemma
+  const existingWord = processedWord
+    ? words.find((w) => w.lemma.toLowerCase() === processedWord.lemma.toLowerCase())
+    : null;
+
   // Load saved auth
   useEffect(() => {
     const saved = localStorage.getItem('lexis-password');
@@ -463,12 +468,18 @@ export default function Home() {
               <div className="translation">{processedWord.translation}</div>
               <div className="example">{processedWord.example}</div>
               <div className="explanation">{processedWord.explanation}</div>
+              {existingWord && (
+                <div className="duplicate-warning">
+                  <strong>Already saved:</strong> {existingWord.translation}
+                  <div className="existing-example">{existingWord.example}</div>
+                </div>
+              )}
               <div className="processing-actions">
                 <button className="btn btn-secondary" onClick={discardWord}>
                   Discard
                 </button>
                 <button className="btn btn-primary" onClick={saveWord}>
-                  Save
+                  {existingWord ? 'Save Anyway' : 'Save'}
                 </button>
               </div>
             </div>
@@ -500,6 +511,42 @@ export default function Home() {
       {/* Words Tab */}
       {activeTab === 'words' && (
         <>
+          {/* Stats */}
+          <div className="stats-section">
+            <div className="stats-grid">
+              <div className="stat-card">
+                <div className="stat-value">{words.length}</div>
+                <div className="stat-label">Total Words</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-value">{books.length}</div>
+                <div className="stat-label">Books</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-value">
+                  {words.filter((w) => {
+                    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+                    return new Date(w.created_at).getTime() > weekAgo;
+                  }).length}
+                </div>
+                <div className="stat-label">This Week</div>
+              </div>
+            </div>
+            {books.length > 0 && (
+              <div className="book-stats">
+                {books.map((book) => {
+                  const count = words.filter((w) => w.book_id === book.id).length;
+                  return (
+                    <div key={book.id} className="book-stat">
+                      <span className="book-stat-tag">{book.tag}</span>
+                      <span className="book-stat-count">{count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           <div className="export-section">
             <h3>Export to Anki</h3>
             <p className="export-info">

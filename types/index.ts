@@ -23,3 +23,9 @@ export interface ProcessedWord {
   example: string;
   explanation: string;
 }
+
+export interface ProcessResponse {
+  confident: boolean;
+  word?: ProcessedWord;
+  alternatives?: ProcessedWord[];
+}

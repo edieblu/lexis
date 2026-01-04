@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Book, Word, ProcessedWord } from '@/types';
+import { Book, Word, ProcessedWord, ProcessResponse } from '@/types';
 
 type Tab = 'capture' | 'words' | 'books';
 
@@ -27,6 +27,7 @@ export default function Home() {
   const [inputText, setInputText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedWord, setProcessedWord] = useState<ProcessedWord | null>(null);
+  const [alternatives, setAlternatives] = useState<ProcessedWord[] | null>(null);
   const [originalInput, setOriginalInput] = useState('');
 
   // Voice (Whisper API)
@@ -185,9 +186,16 @@ export default function Home() {
       });
 
       if (res.ok) {
-        const data: ProcessedWord = await res.json();
-        setProcessedWord(data);
-        setStatus('');
+        const data: ProcessResponse = await res.json();
+        if (data.confident && data.word) {
+          setProcessedWord(data.word);
+          setAlternatives(null);
+        } else if (data.alternatives) {
+          setAlternatives(data.alternatives);
+          setProcessedWord(null);
+          setStatus('Did you mean one of these?');
+          setStatusType('');
+        }
         setInputText('');
       } else {
         setStatus('Failed to process word');
@@ -200,6 +208,13 @@ export default function Home() {
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  // Select an alternative
+  const selectAlternative = (word: ProcessedWord) => {
+    setProcessedWord(word);
+    setAlternatives(null);
+    setStatus('');
   };
 
   const saveWord = async () => {
@@ -237,7 +252,9 @@ export default function Home() {
 
   const discardWord = () => {
     setProcessedWord(null);
+    setAlternatives(null);
     setOriginalInput('');
+    setStatus('');
   };
 
   const handleDeleteWord = async (id: number) => {
@@ -428,7 +445,7 @@ export default function Home() {
           </div>
 
           {/* Word input */}
-          {selectedBookId && !processedWord && (
+          {selectedBookId && !processedWord && !alternatives && (
             <div className="input-section">
               <div className="input-row">
                 <input
@@ -460,6 +477,25 @@ export default function Home() {
 
           {/* Status */}
           {status && <div className={`status ${statusType}`}>{status}</div>}
+
+          {/* Alternatives selection */}
+          {alternatives && (
+            <div className="alternatives-section">
+              {alternatives.map((alt, index) => (
+                <button
+                  key={index}
+                  className="alternative-card"
+                  onClick={() => selectAlternative(alt)}
+                >
+                  <div className="lemma">{alt.lemma}</div>
+                  <div className="translation">{alt.translation}</div>
+                </button>
+              ))}
+              <button className="btn btn-secondary" onClick={discardWord} style={{ marginTop: '0.5rem' }}>
+                None of these
+              </button>
+            </div>
+          )}
 
           {/* Processing card */}
           {processedWord && (
